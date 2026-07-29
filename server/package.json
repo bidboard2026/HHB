@@ -1,0 +1,15 @@
+{
+  "name": "bidboard-server",
+  "version": "1.0.0",
+  "description": "BidBoard chat backend — Express API with a MySQL database.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.23.2",
+    "ws": "^8.21.1"
+  }
+}
