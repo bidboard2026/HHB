@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bans — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic" id="page-ic">🚫</div><h1 id="room-name">Room</h1></div>
+      <div class="page-sub" id="page-sub">Banned Users</div>
+
+      <div class="card" id="add-card">
+        <div class="card-head"><h3 id="add-title">BAN A USER</h3></div>
+        <div class="field">
+          <label id="input-label">Nickname</label>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="ban-value" placeholder="e.g. troublemaker99">
+            <button class="btn" id="ban-btn" style="white-space:nowrap;">+ Ban</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3 id="list-title">BANNED USERS</h3></div>
+        <div class="filter-row">
+          <input type="text" id="filter" placeholder="Filter...">
+          <span class="count-badge" id="count">0 / 0</span>
+        </div>
+        <table class="data-table">
+          <thead><tr><th id="value-col">Value</th><th>Banned At</th><th>Action</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+const roomId = urlParam('room');
+const banType = urlParam('type') || 'users';
+if(!roomId){ window.location.href = 'dashboard.html'; }
+
+const TYPE_META = {
+  users:     { label: 'Banned Users',    icon: '👤', inputLabel: 'Nickname',       placeholder: 'e.g. troublemaker99',    addTitle: 'BAN A USER' },
+  countries: { label: 'Banned Countries', icon: '🌍', inputLabel: 'Country',        placeholder: 'e.g. Unknown',            addTitle: 'BAN A COUNTRY' },
+  cities:    { label: 'Banned Cities',   icon: '📍', inputLabel: 'City Name',      placeholder: 'e.g. Moscow',             addTitle: 'BAN A CITY' },
+  browsers:  { label: 'Banned Browsers', icon: '🖥️', inputLabel: 'Browser / FP',   placeholder: 'e.g. python-requests/2.31', addTitle: 'BAN FP' },
+  networks:  { label: 'Banned Networks', icon: '📶', inputLabel: 'Network / ASN',  placeholder: 'e.g. AS13335 Cloudflare', addTitle: 'BAN A NETWORK / ASN' },
+  ipRanges:  { label: 'Banned IP Ranges', icon: '🛡️', inputLabel: 'IP Range',       placeholder: '192.168.',                addTitle: 'ADD IP RANGE' }
+};
+
+let allBans = [];
+
+function render(filter=''){
+  const q = filter.trim().toLowerCase();
+  const shown = allBans.filter(b => b.value.toLowerCase().includes(q));
+  document.getElementById('count').textContent = `${shown.length} / ${allBans.length}`;
+  const rows = document.getElementById('rows');
+  if(!shown.length){ rows.innerHTML = '<tr><td colspan="3" class="empty-row">No data available</td></tr>'; return; }
+  rows.innerHTML = shown.map(b => `
+    <tr>
+      <td>${b.value}</td>
+      <td>${new Date(b.bannedAt).toLocaleString()}</td>
+      <td><button class="btn small secondary" onclick="unban('${encodeURIComponent(b.value)}')">Unban</button></td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('filter').addEventListener('input', e => render(e.target.value));
+
+async function loadBans(){
+  const result = await adminApi(`/admin/rooms/${roomId}/bans`);
+  allBans = (result.bans && result.bans[banType]) || [];
+  render();
+}
+
+document.getElementById('ban-btn').addEventListener('click', async () => {
+  const input = document.getElementById('ban-value');
+  const value = input.value.trim();
+  if(!value) return;
+  const result = await adminApi(`/admin/rooms/${roomId}/bans/${banType}`, { method:'POST', body:{ value } });
+  if(result.error){ alert(result.error); return; }
+  input.value = '';
+  loadBans();
+});
+
+async function unban(encodedValue){
+  await adminApi(`/admin/rooms/${roomId}/bans/${banType}/${encodedValue}`, { method:'DELETE' });
+  loadBans();
+}
+
+async function load(){
+  const roomResult = await adminApi(`/admin/rooms/${roomId}`);
+  if(roomResult.error){ window.location.href = 'dashboard.html'; return; }
+  const room = roomResult.room;
+  const meta = TYPE_META[banType] || TYPE_META.users;
+
+  renderTopbar(document.getElementById('topbar'), `BidBoard / Rooms / <b>${room.name}</b> / ${meta.label}`);
+  renderAdminSidebar(document.getElementById('sidebar'), roomId, 'bans:' + banType);
+  document.getElementById('room-name').textContent = `${room.name} (ID: ${room.id})`;
+  document.getElementById('page-sub').textContent = meta.label;
+  document.getElementById('page-ic').textContent = meta.icon;
+  document.getElementById('add-title').textContent = meta.addTitle;
+  document.getElementById('input-label').textContent = meta.inputLabel;
+  document.getElementById('ban-value').placeholder = meta.placeholder;
+  document.getElementById('list-title').textContent = meta.label.toUpperCase();
+  document.getElementById('value-col').textContent = meta.inputLabel.toUpperCase();
+
+  loadBans();
+}
+load();
+</script>
+
+</body>
+</html>

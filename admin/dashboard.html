@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic">🏠</div><h1 id="greeting">Good day.</h1></div>
+      <div class="page-sub">Here's an overview of your BidBoard control panel.</div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ic" style="background:#eef0ff; color:#5b6cf0;">💬</div>
+          <div class="stat-num" id="stat-rooms">–</div>
+          <div class="stat-label">Total Rooms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic" style="background:#e9fbf1; color:#16a34a;">👥</div>
+          <div class="stat-num" id="stat-users">–</div>
+          <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic" style="background:#fdeaea; color:#dc2626;">🛡️</div>
+          <div class="stat-num" id="stat-bans">–</div>
+          <div class="stat-label">Active Bans</div>
+        </div>
+      </div>
+
+      <div class="page-actions" style="margin-bottom:22px;">
+        <button class="btn" onclick="createRoomPrompt()">➕ New Chat Room</button>
+        <button class="btn secondary" onclick="location.href='users-create.html'">👤 Create User</button>
+        <button class="btn secondary" onclick="location.href='users-search.html'">🔍 Search Users</button>
+        <button class="btn secondary" onclick="createDummyUser()">🤖 Create Dummy User</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>💬 CHAT ROOMS</h3>
+          <button class="btn small secondary" onclick="createRoomPrompt()">+ New Room</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Room Name</th><th>Room ID</th><th>Actions</th></tr></thead>
+          <tbody id="room-rows"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+
+async function load(){
+  renderTopbar(document.getElementById('topbar'), 'BidBoard / <b>Dashboard</b>');
+  renderAdminSidebar(document.getElementById('sidebar'), null, 'dashboard');
+
+  const session = AdminSession.get();
+  const hour = new Date().getHours();
+  const greetWord = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+  document.getElementById('greeting').textContent = `Good ${greetWord}, ${session.username}.`;
+
+  const stats = await adminApi('/admin/stats');
+  if(!stats.error){
+    document.getElementById('stat-rooms').textContent = stats.totalRooms;
+    document.getElementById('stat-users').textContent = stats.totalUsers;
+    document.getElementById('stat-bans').textContent = stats.activeBans;
+  }
+
+  const roomsResult = await adminApi('/admin/rooms');
+  window._allRooms = roomsResult.rooms || [];
+  const rows = document.getElementById('room-rows');
+  if(roomsResult.rooms && roomsResult.rooms.length){
+    rows.innerHTML = roomsResult.rooms.map(r => `
+      <tr>
+        <td><span style="color:#16a34a;">●</span> ${r.name}</td>
+        <td>${r.id}</td>
+        <td>
+          <button class="btn small secondary" onclick="location.href='room-live.html?room=${r.id}'">📡 Live</button>
+          <button class="btn small secondary" onclick="location.href='room-settings.html?room=${r.id}'">⚙️ Settings</button>
+          <button class="btn small danger" onclick="location.href='room-bans.html?room=${r.id}&type=users'">🛡️ Bans</button>
+        </td>
+      </tr>
+    `).join('');
+  } else {
+    rows.innerHTML = '<tr><td colspan="3" class="empty-row">No rooms yet — create one above.</td></tr>';
+  }
+}
+load();
+
+async function createDummyUser(){
+  const rooms = window._allRooms || [];
+  if(!rooms.length){ alert('Create a room first.'); return; }
+  const roomList = rooms.map(r => `${r.id}: ${r.name}`).join('\n');
+  const roomId = prompt(`Which room should these dummy users appear in? Enter the room ID:\n\n${roomList}`, rooms[0].id);
+  if(!roomId) return;
+  const count = Number(prompt('How many dummy users to create? (1-50)', '1')) || 1;
+  const name = count === 1 ? prompt('Optional name (leave blank for a random one):', '') : null;
+  const result = await adminApi('/admin/dummy-users', { method:'POST', body:{ name, count, roomId: Number(roomId) } });
+  if(result.error){ alert(result.error); return; }
+  alert(`Created ${result.users.length} dummy user(s): ${result.users.map(u=>u.username).join(', ')}`);
+}
+</script>
+
+</body>
+</html>

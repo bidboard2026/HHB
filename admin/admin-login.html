@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BidBoard Control Panel — Sign In</title>
+<link rel="stylesheet" href="admin-shell.css">
+<style>
+  body{background:linear-gradient(180deg,#f7f5ff,#fbfaff); display:flex; align-items:center; justify-content:center; min-height:100vh;}
+  .login-wrap{width:380px; text-align:center;}
+  .login-ic{width:56px; height:56px; border-radius:16px; background:#efe9fe; color:var(--purple-dark); font-size:24px; display:flex; align-items:center; justify-content:center; margin:0 auto 18px;}
+  .login-wrap h1{font-size:24px; font-weight:800; margin-bottom:6px;}
+  .login-wrap .sub{color:var(--mute); font-size:13.5px; margin-bottom:26px;}
+  .login-card{background:#fff; border:1px solid var(--border); border-radius:16px; padding:28px; text-align:left;}
+  .footer-note{margin-top:20px; font-size:11.5px; color:var(--mute);}
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-ic">((•))</div>
+  <h1>BidBoard</h1>
+  <div class="sub">Control Panel · Sign in to continue</div>
+
+  <div class="login-card">
+    <div id="notice"></div>
+    <form id="login-form">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <div class="field">
+        <label>Security Check</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span id="captcha-question" style="font-weight:700; white-space:nowrap;">Loading…</span>
+          <input type="number" id="captcha-answer" placeholder="Your answer" required style="flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--border);">
+        </div>
+      </div>
+      <button class="btn" type="submit" style="width:100%; padding:12px 0; margin-top:6px;">Sign In</button>
+    </form>
+  </div>
+
+  <div class="footer-note">Default: username <b>admin</b>, password <b>admin123</b> — change this in Settings after your first login.</div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+if(AdminSession.get()) window.location.href = 'dashboard.html';
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+let currentCaptchaId = null;
+async function loadCaptcha(){
+  const result = await adminApi('/captcha');
+  currentCaptchaId = result.id;
+  document.getElementById('captcha-question').textContent = result.question;
+}
+loadCaptcha();
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const captchaAnswer = document.getElementById('captcha-answer').value;
+  const result = await adminApi('/admin/login', { method:'POST', body:{ username, password, captchaId: currentCaptchaId, captchaAnswer } });
+  if(result.error){
+    notice(result.error, false);
+    document.getElementById('captcha-answer').value = '';
+    loadCaptcha();
+    return;
+  }
+  AdminSession.set({ token: result.token, username: result.admin.username });
+  window.location.href = 'dashboard.html';
+});
+</script>
+
+</body>
+</html>

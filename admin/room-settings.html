@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Settings — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic">⚙️</div><h1>Edit Chat Room</h1></div>
+      <div class="page-sub" id="room-id-sub">Room ID: —</div>
+      <div id="notice"></div>
+
+      <div class="card">
+        <div class="card-head"><h3>🛡️ BASIC SETTINGS</h3></div>
+        <div class="row2">
+          <div class="field"><label>Room Name</label><input type="text" id="s-name"><div class="hint">No special characters</div></div>
+          <div class="field"><label>Category</label>
+            <select id="s-category">
+              <option>Entertainment</option><option>Support</option><option>Gaming</option>
+              <option>Music</option><option>General</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Radio IP &amp; Port</label><input type="text" id="s-radio" placeholder="192.168.1.1:8080"></div>
+          <div class="field"><label>Room Topic</label><input type="text" id="s-topic"><div class="hint">Shown on the login screen</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>⚙️ ROOM CONFIGURATION</h3></div>
+        <div id="config-toggles"></div>
+        <div class="row2" style="margin-top:14px;">
+          <div class="field"><label>Min Points to Whisper</label><input type="number" id="s-min-whisper"><div class="hint">User must reach this to whisper</div></div>
+          <div class="field"><label>Whisper Cost (points)</label><input type="number" id="s-whisper-cost"><div class="hint">Deducted per whisper</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🎭 USERS LIST CONFIGURATION</h3></div>
+        <div id="userslist-toggles"></div>
+        <div class="field" style="margin-top:10px;">
+          <label>Default User Avatar</label>
+          <div style="display:flex; gap:18px; margin-top:6px;">
+            <label style="display:flex; gap:6px; align-items:center; font-size:13px;"><input type="radio" name="avatarmode" value="text"> Text Avatar</label>
+            <label style="display:flex; gap:6px; align-items:center; font-size:13px;"><input type="radio" name="avatarmode" value="url"> Custom URL</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🎨 THEME SETTINGS</h3></div>
+        <div class="row2">
+          <div class="field"><label>Chat Background</label><input type="text" id="t-chat-bg" placeholder="#ffffff"><div class="hint">Color or image URL</div></div>
+          <div class="field"><label>Login Background</label><input type="text" id="t-login-bg" placeholder="#7b8099"><div class="hint">Color or image URL</div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Chat Header BG</label><input type="text" id="t-header-bg" placeholder="#7b8099"><div class="hint">Color or image URL</div></div>
+          <div class="field"><label>Tab Color (Active)</label><input type="text" id="t-tab-active" placeholder="#b95ac5"><div class="hint">Hex color</div></div>
+        </div>
+        <div class="field"><label>Tab Color (Hover)</label><input type="text" id="t-tab-hover" placeholder="#7b8099"><div class="hint">Hex color</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>💬 SHORTCUT MESSAGES</h3></div>
+        <div class="field">
+          <label>Shortcuts (one per line)</label>
+          <textarea id="s-shortcuts" rows="6" placeholder=";hw----How are you&#10;;wb----Welcome Back&#10;;wc----Welcome&#10;;brb----Be right back"></textarea>
+          <div class="hint">Format: ;shortCode----Message text</div>
+        </div>
+      </div>
+
+      <div class="page-actions">
+        <button class="btn" id="save-btn">💾 Save Changes</button>
+        <button class="btn secondary" onclick="history.back()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+const roomId = urlParam('room');
+if(!roomId){ window.location.href = 'dashboard.html'; }
+
+const CONFIG_TOGGLES = [
+  ['disableLogout', 'Disable Logout', 'Users cannot log out from the chat room'],
+  ['lockRoom', 'Lock Room', 'Only registered users can enter'],
+  ['autoBanButton', 'AutoBan Button in Chat', 'Show a quick-ban button in the chat interface'],
+  ['showNotices', 'Show Notices', 'Display developer notices inside the chat'],
+  ['restrictGuest', 'Restrict Guest', 'Limit what guest users can do'],
+  ['disableGuestChat', 'Disable Guest Chat', 'Guests can enter but cannot send messages']
+];
+
+const USERSLIST_TOGGLES = [
+  ['showRank', 'Show Rank / Level', ''],
+  ['showRankCountry', 'Show Rank Country', ''],
+  ['showFlag', 'Show Flag (not Rank)', 'Toggle ON = show country flag, Toggle OFF = show rank']
+];
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+function renderToggleGroup(containerId, list, values, onChange){
+  document.getElementById(containerId).innerHTML = list.map(([key,label,desc]) => `
+    <div class="toggle-row">
+      <div><div class="label">${label}</div>${desc? `<div class="desc">${desc}</div>`:''}</div>
+      <label class="toggle">
+        <input type="checkbox" data-key="${key}" ${values[key] ? 'checked':''} onchange="${onChange}(this)">
+        <span class="track"></span>
+      </label>
+    </div>
+  `).join('');
+}
+
+function onConfigToggle(input){ patchRoom({ config: { [input.dataset.key]: input.checked } }); }
+function onUsersListToggle(input){ patchRoom({ usersListConfig: { [input.dataset.key]: input.checked } }); }
+
+async function patchRoom(partial){
+  const result = await adminApi(`/admin/rooms/${roomId}`, { method:'POST', body: partial });
+  if(result.error) notice(result.error, false);
+}
+
+async function load(){
+  const roomResult = await adminApi(`/admin/rooms/${roomId}`);
+  if(roomResult.error){ window.location.href = 'dashboard.html'; return; }
+  const room = roomResult.room;
+
+  renderTopbar(document.getElementById('topbar'), `BidBoard / Rooms / <b>${room.name}</b> / Settings`);
+  renderAdminSidebar(document.getElementById('sidebar'), roomId, 'settings');
+  document.getElementById('room-id-sub').textContent = `Room ID: ${room.id}`;
+
+  document.getElementById('s-name').value = room.name;
+  document.getElementById('s-category').value = room.category;
+  document.getElementById('s-radio').value = room.radioIpPort;
+  document.getElementById('s-topic').value = room.topic;
+  document.getElementById('s-min-whisper').value = room.config.minPointsToWhisper;
+  document.getElementById('s-whisper-cost').value = room.config.whisperCost;
+  document.getElementById('s-shortcuts').value = room.shortcuts;
+
+  document.querySelectorAll('input[name=avatarmode]').forEach(r => {
+    r.checked = r.value === room.usersListConfig.defaultAvatarMode;
+    r.addEventListener('change', () => patchRoom({ usersListConfig: { defaultAvatarMode: r.value } }));
+  });
+
+  document.getElementById('t-chat-bg').value = room.theme.chatBackground;
+  document.getElementById('t-login-bg').value = room.theme.loginBackground;
+  document.getElementById('t-header-bg').value = room.theme.chatHeaderBg;
+  document.getElementById('t-tab-active').value = room.theme.tabColorActive;
+  document.getElementById('t-tab-hover').value = room.theme.tabColorHover;
+
+  renderToggleGroup('config-toggles', CONFIG_TOGGLES, room.config, 'onConfigToggle');
+  renderToggleGroup('userslist-toggles', USERSLIST_TOGGLES, room.usersListConfig, 'onUsersListToggle');
+}
+load();
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const patch = {
+    name: document.getElementById('s-name').value.trim(),
+    category: document.getElementById('s-category').value,
+    radioIpPort: document.getElementById('s-radio').value.trim(),
+    topic: document.getElementById('s-topic').value.trim(),
+    shortcuts: document.getElementById('s-shortcuts').value,
+    config: {
+      minPointsToWhisper: Number(document.getElementById('s-min-whisper').value || 0),
+      whisperCost: Number(document.getElementById('s-whisper-cost').value || 0)
+    },
+    theme: {
+      chatBackground: document.getElementById('t-chat-bg').value.trim(),
+      loginBackground: document.getElementById('t-login-bg').value.trim(),
+      chatHeaderBg: document.getElementById('t-header-bg').value.trim(),
+      tabColorActive: document.getElementById('t-tab-active').value.trim(),
+      tabColorHover: document.getElementById('t-tab-hover').value.trim()
+    }
+  };
+  const result = await adminApi(`/admin/rooms/${roomId}`, { method:'POST', body: patch });
+  if(result.error) return notice(result.error, false);
+  notice('Changes saved.', true);
+});
+</script>
+
+</body>
+</html>

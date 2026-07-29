@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Users — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic">🔍</div><h1>Search Users</h1></div>
+      <div class="page-sub">Look up registered users across all rooms</div>
+
+      <div class="card">
+        <div class="row2" style="align-items:end;">
+          <div class="field"><label>Username</label><input type="text" id="q-username" placeholder="Search by username — leave blank to show all…"></div>
+          <div class="field"><label>Room</label>
+            <select id="q-room"><option value="">All Rooms</option></select>
+          </div>
+        </div>
+        <button class="btn" id="search-btn">🔍 Search</button>
+        <div class="hint" style="margin-top:8px;">Partial matches supported. Leave username blank to show all.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>👤 RESULTS</h3></div>
+        <div class="hint" style="margin-bottom:10px;">Click a username's IP to see every account that has logged in from that address.</div>
+        <table class="data-table">
+          <thead><tr><th>Username</th><th>Room</th><th>IP</th><th>Country</th><th>City</th><th>Tags</th><th>Points</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="9" class="empty-row">Search to see results.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>⏱️ IP HISTORY LOOKUP</h3></div>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="ip-lookup-input" placeholder="Paste an IP from the table above…" style="flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--border);">
+          <button class="btn secondary" onclick="lookupIp()">Look Up</button>
+        </div>
+        <table class="data-table" style="margin-top:14px;">
+          <thead><tr><th>Username</th><th>Time</th><th>Room</th></tr></thead>
+          <tbody id="ip-history-rows"><tr><td colspan="3" class="empty-row">No lookup yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+
+async function loadRoomOptions(){
+  const result = await adminApi('/admin/rooms');
+  const sel = document.getElementById('q-room');
+  (result.rooms || []).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.name} (ID: ${r.id})`;
+    sel.appendChild(opt);
+  });
+}
+
+async function search(){
+  const username = document.getElementById('q-username').value.trim();
+  const roomId = document.getElementById('q-room').value;
+  const qs = new URLSearchParams();
+  if(username) qs.set('username', username);
+  if(roomId) qs.set('roomId', roomId);
+  const result = await adminApi(`/admin/users?${qs.toString()}`);
+  const rows = document.getElementById('rows');
+  if(result.error){ rows.innerHTML = `<tr><td colspan="9" class="empty-row">${result.error}</td></tr>`; return; }
+  if(!result.users.length){ rows.innerHTML = '<tr><td colspan="9" class="empty-row">No data available</td></tr>'; return; }
+  rows.innerHTML = result.users.map(u => `
+    <tr>
+      <td>${u.username}</td>
+      <td>${u.currentRoom ?? '—'}</td>
+      <td><a href="#" onclick="document.getElementById('ip-lookup-input').value='${u.lastIp}'; lookupIp(); return false;" style="color:var(--purple-dark); text-decoration:underline;">${u.lastIp}</a></td>
+      <td>${flagEmoji(u.lastCountryCode)} ${u.lastCountry}</td>
+      <td>${u.lastCity}</td>
+      <td>${(u.tags||[]).join(', ')}</td>
+      <td>${u.points}</td>
+      <td>${u.banned ? '<span class="tag ban">Banned</span>' : u.muted ? '<span class="tag mute">Muted</span>' : '<span class="tag ok">Active</span>'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn small secondary" onclick="quickMute('${u.username}', ${!u.muted})">${u.muted?'Unmute':'Mute'}</button>
+        <button class="btn small secondary" onclick="quickKick('${u.username}')">Kick</button>
+        <button class="btn small danger" onclick="quickBanFlag('${u.username}', ${!u.banned})">${u.banned?'Unban':'Ban'}</button>
+        <button class="btn small secondary" onclick="quickRateLimit('${u.username}')">Limit</button>
+        <button class="btn small danger" onclick="del('${u.username}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function quickMute(username, muted){
+  await adminApi('/admin/flag', { method:'POST', body:{ username, flag:'muted', value: muted } });
+  search();
+}
+
+async function quickBanFlag(username, banned){
+  await adminApi('/admin/flag', { method:'POST', body:{ username, flag:'banned', value: banned } });
+  search();
+}
+
+async function quickKick(username){
+  if(!confirm(`Kick ${username}? They'll be forced to log in again.`)) return;
+  await adminApi('/admin/kick', { method:'POST', body:{ username } });
+  search();
+}
+
+async function quickRateLimit(username){
+  const seconds = prompt(`Minimum seconds between messages for ${username} (0 = no limit):`, '0');
+  if(seconds === null) return;
+  await adminApi('/admin/set-rate-limit', { method:'POST', body:{ username, seconds: Number(seconds) } });
+  search();
+}
+
+async function lookupIp(){
+  const ip = document.getElementById('ip-lookup-input').value.trim();
+  const rows = document.getElementById('ip-history-rows');
+  if(!ip){ rows.innerHTML = '<tr><td colspan="3" class="empty-row">Enter an IP first.</td></tr>'; return; }
+  const result = await adminApi(`/admin/ip-history/${encodeURIComponent(ip)}`);
+  if(result.error || !result.history.length){ rows.innerHTML = '<tr><td colspan="3" class="empty-row">No history for this IP.</td></tr>'; return; }
+  rows.innerHTML = result.history.map(h => `
+    <tr><td>${h.username}</td><td>${new Date(h.time).toLocaleString()}</td><td>${h.roomId ?? '—'}</td></tr>
+  `).join('');
+}
+
+async function del(username){
+  if(!confirm(`Permanently delete ${username}?`)) return;
+  await adminApi(`/admin/users/${encodeURIComponent(username)}`, { method:'DELETE' });
+  search();
+}
+
+document.getElementById('search-btn').addEventListener('click', search);
+document.getElementById('q-username').addEventListener('keydown', e => { if(e.key==='Enter') search(); });
+
+async function load(){
+  renderTopbar(document.getElementById('topbar'), 'BidBoard / Users / <b>Search</b>');
+  renderAdminSidebar(document.getElementById('sidebar'), null, 'search-users');
+  await loadRoomOptions();
+  search();
+}
+load();
+</script>
+
+</body>
+</html>

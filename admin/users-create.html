@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create User — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic">➕</div><h1>Create New User</h1></div>
+      <div id="notice"></div>
+
+      <div class="card">
+        <div class="card-head"><h3>👤 USER DETAILS</h3></div>
+        <div class="row2">
+          <div class="field"><label>Username</label><input type="text" id="c-username" placeholder="NickName"><div class="hint">Only underscores allowed, no other special chars</div></div>
+          <div class="field"><label>Password</label><input type="password" id="c-password" placeholder="Set password"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Select Room</label><select id="c-room"></select></div>
+          <div class="field"><label>Email</label><input type="email" id="c-email" placeholder="email@email.com"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Gender</label>
+            <select id="c-gender"><option>Unknown</option><option>Male</option><option>Female</option></select>
+          </div>
+          <div class="field"><label>User Points</label><input type="number" id="c-points" value="1"></div>
+        </div>
+        <div class="row2">
+          <div class="toggle-row"><div><div class="label">Account Status</div><div class="desc">Enable or disable login</div></div>
+            <label class="toggle"><input type="checkbox" id="c-active" checked><span class="track"></span></label>
+          </div>
+          <div class="toggle-row"><div><div class="label">Allow Emojis</div><div class="desc">User can send emoji</div></div>
+            <label class="toggle"><input type="checkbox" id="c-emojis" checked><span class="track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🏷️ USER TAGS / ROLES</h3></div>
+        <div id="tag-chips"></div>
+        <div class="hint">"registered" is always included. Click tags to toggle.</div>
+      </div>
+
+      <div class="page-actions">
+        <button class="btn" id="create-btn">💾 Create User</button>
+        <button class="btn secondary" onclick="history.back()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+
+const ALL_TAGS = ['invisible','owner','king','queen','super_admin','rj_head','admin','rj','platinum','gold','silver','vip','registered','immune'];
+let selectedTags = new Set(['registered']);
+
+function renderTags(){
+  document.getElementById('tag-chips').innerHTML = ALL_TAGS.map(tag => `
+    <span class="tag-chip ${selectedTags.has(tag)?'active':''}" onclick="toggleTag('${tag}')">${tag}</span>
+  `).join('');
+}
+function toggleTag(tag){
+  if(tag === 'registered') return; // always included
+  if(selectedTags.has(tag)) selectedTags.delete(tag); else selectedTags.add(tag);
+  renderTags();
+}
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+async function loadRoomOptions(){
+  const result = await adminApi('/admin/rooms');
+  const sel = document.getElementById('c-room');
+  (result.rooms || []).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.name} (ID: ${r.id})`;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('create-btn').addEventListener('click', async () => {
+  const username = document.getElementById('c-username').value.trim();
+  const password = document.getElementById('c-password').value;
+  if(!username || !password || password.length < 6){
+    return notice('Username and a 6+ character password are required.', false);
+  }
+  const body = {
+    username, password,
+    email: document.getElementById('c-email').value.trim(),
+    gender: document.getElementById('c-gender').value,
+    points: Number(document.getElementById('c-points').value || 0),
+    roomId: document.getElementById('c-room').value,
+    accountActive: document.getElementById('c-active').checked,
+    allowEmojis: document.getElementById('c-emojis').checked,
+    tags: [...selectedTags]
+  };
+  const result = await adminApi('/admin/users', { method:'POST', body });
+  if(result.error) return notice(result.error, false);
+  notice(`User "${username}" created.`, true);
+  document.getElementById('c-username').value = '';
+  document.getElementById('c-password').value = '';
+});
+
+async function load(){
+  renderTopbar(document.getElementById('topbar'), 'BidBoard / Users / <b>Create User</b>');
+  renderAdminSidebar(document.getElementById('sidebar'), null, 'create-user');
+  await loadRoomOptions();
+  renderTags();
+}
+load();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recent Logins — BidBoard Control Panel</title>
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+
+<div class="admin-layout">
+  <div class="admin-sidebar" id="sidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar" id="topbar"></div>
+    <div class="admin-content">
+      <div class="page-title"><div class="ic">🕐</div><h1 id="room-name">Room</h1></div>
+      <div class="page-sub">Recent Logins</div>
+
+      <div class="card">
+        <div class="filter-row">
+          <input type="text" id="filter" placeholder="Filter...">
+          <span class="count-badge" id="count">0 / 0</span>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Nick</th><th>Time</th><th>Country</th><th>City</th><th>IP</th><th>Network</th><th>Browser</th><th>FP</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="8" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shell.js"></script>
+<script>
+AdminSession.requireLogin();
+const roomId = urlParam('room');
+if(!roomId){ window.location.href = 'dashboard.html'; }
+let allLogins = [];
+
+function render(filter=''){
+  const q = filter.trim().toLowerCase();
+  const shown = allLogins.filter(l => l.username.toLowerCase().includes(q));
+  document.getElementById('count').textContent = `${shown.length} / ${allLogins.length}`;
+  const rows = document.getElementById('rows');
+  if(!shown.length){ rows.innerHTML = '<tr><td colspan="8" class="empty-row">No data available</td></tr>'; return; }
+  rows.innerHTML = shown.map(l => `
+    <tr>
+      <td>${l.username}</td>
+      <td>${new Date(l.time).toLocaleString()}</td>
+      <td>${flagEmoji(l.countryCode)} ${l.country}</td>
+      <td>${l.city}</td>
+      <td>${l.ip}</td>
+      <td>${l.network}</td>
+      <td>${l.browser}</td>
+      <td title="${l.fp}">${l.fp.slice(0,8)}…</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('filter').addEventListener('input', e => render(e.target.value));
+
+async function load(){
+  const roomResult = await adminApi(`/admin/rooms/${roomId}`);
+  if(roomResult.error){ window.location.href = 'dashboard.html'; return; }
+  const room = roomResult.room;
+  renderTopbar(document.getElementById('topbar'), `BidBoard / Rooms / <b>${room.name}</b> / Recent Logins`);
+  renderAdminSidebar(document.getElementById('sidebar'), roomId, 'recent');
+  document.getElementById('room-name').textContent = `${room.name} (ID: ${room.id})`;
+
+  const result = await adminApi(`/admin/rooms/${roomId}/recent-logins`);
+  allLogins = result.logins || [];
+  render();
+}
+load();
+</script>
+
+</body>
+</html>
