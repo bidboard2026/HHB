@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <div class="ic active" title="Help">❓</div>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>HELP</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body">
+    <div class="section">
+      <h3>HOW POINTS WORK</h3>
+      <table class="admin-table">
+        <tr><td>Sending a real message (10+ characters)</td><td style="color:#1c8a58; font-weight:700;">+5 pts</td></tr>
+        <tr><td>Staying in a room</td><td style="color:#1c8a58; font-weight:700;">+1 pt / minute</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>CHAT COMMANDS</h3>
+      <table class="admin-table">
+        <tr><td><code>/whisper nickname message</code> (or <code>/w</code>)</td><td>Send a private line only you and that person can see, right in the main room</td></tr>
+        <tr><td><code>/face :100</code></td><td>Set an emoji as your avatar (see the emoji code list below). <code>/face clear</code> resets it</td></tr>
+        <tr><td><code>:100</code> anywhere in a message</td><td>Renders as the matching emoji — try <code>:100</code> through <code>:199</code></td></tr>
+      </table>
+      <p style="margin-top:14px; color:var(--text-mute); font-size:13px;">The commands below need specific role tags (see ROLES & PERMISSIONS):</p>
+      <table class="admin-table">
+        <tr><td><code>/clear</code></td><td>Wipe all messages in the current room</td></tr>
+        <tr><td><code>/topic new topic text</code></td><td>Change the room's topic</td></tr>
+        <tr><td><code>/gift nickname amount</code></td><td>Award points to someone</td></tr>
+        <tr><td><code>/tag nickname tagname</code></td><td>Toggle a tag on/off for someone</td></tr>
+        <tr><td><code>/tempadmin nickname minutes</code></td><td>Grant temporary admin that expires automatically</td></tr>
+        <tr><td><code>/invisible on|off</code></td><td>Hide yourself from the online users list</td></tr>
+        <tr><td><code>/mute nickname</code>, <code>/unmute nickname</code></td><td>Mute or unmute someone</td></tr>
+        <tr><td><code>/kick nickname</code></td><td>Force someone to log in again</td></tr>
+        <tr><td><code>/ban nickname</code></td><td>Ban someone from the current room</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>ROLES & PERMISSIONS</h3>
+      <p style="color:var(--text-mute); font-size:13px; margin-bottom:14px;">Every tag shows as a badge next to a person's name. Permissions are the union of all tags someone holds.</p>
+      <table class="admin-table">
+        <tr><td>👑 Owner</td><td>Everything: ban, kick, mute, change topic, go invisible, gift points, change others' tags, grant temp admin, change levels, clear chat</td></tr>
+        <tr><td>⭐ Super Admin</td><td>Same as Owner</td></tr>
+        <tr><td>🛡️ Admin</td><td>Ban, kick, mute, clear chat</td></tr>
+        <tr><td>♚ King / ♛ Queen</td><td>Ban, kick, mute</td></tr>
+        <tr><td>🎙️ RJ Head</td><td>Mute</td></tr>
+        <tr><td>⭐ VIP / 💎 Platinum / 🥇 Gold / 🥈 Silver / 🛡️ Immune</td><td>Cosmetic badges — no special permissions</td></tr>
+      </table>
+      <p style="margin-top:12px; color:var(--text-mute); font-size:12.5px;">Roles/tags are assigned via the admin control panel's Create User page, or in-room using <code>/tag nickname tagname</code> (needs the changeTags permission).</p>
+    </div>
+
+    <div class="section">
+      <h3>EMOJI CODES (:100 – :199)</h3>
+      <p style="color:var(--text-mute); font-size:13px; margin-bottom:10px;">Type any of these in chat, or use <code>/face :100</code> to set one as your avatar.</p>
+      <div id="emoji-code-preview" style="font-size:14px; line-height:2; word-spacing:6px;"></div>
+    </div>
+
+    <div class="section">
+      <h3>LEVEL TIERS</h3>
+      <table class="admin-table">
+        <tr><td>🥉 Bronze</td><td>Everyone starts here</td></tr>
+        <tr><td>🥈 Silver</td><td>50,000+ pts</td></tr>
+        <tr><td>🏅 Gold</td><td>100,000+ pts</td></tr>
+        <tr><td>💎 Platinum</td><td>200,000+ pts</td></tr>
+        <tr><td>⭐ VIP</td><td>300+ likes received</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>PRIVATE MESSAGES & CALLS</h3>
+      <p style="margin-bottom:14px;"><b>How do I send someone a PM?</b><br>
+      <span style="color:var(--text-mute);">Click their name in the People list, or open Private Messages and type a username to start a new thread.</span></p>
+      <p style="margin-bottom:14px;"><b>Can I send photos in a PM?</b><br>
+      <span style="color:var(--text-mute);">Yes — use the 📎 button in a conversation to attach an image.</span></p>
+      <p style="margin-bottom:14px;"><b>Where do emojis come from?</b><br>
+      <span style="color:var(--text-mute);">Click the 😊 button just above the message box, in either the chat room or a PM — it opens Static and Animated tabs.</span></p>
+      <p style="margin-bottom:14px;"><b>What happens if someone @mentions me?</b><br>
+      <span style="color:var(--text-mute);">Their message is highlighted and a banner appears at the top of the room so you don't miss it.</span></p>
+      <p><b>Can I call someone?</b><br>
+      <span style="color:var(--text-mute);">Audio/video call buttons are available in the chat room and in each PM conversation. This is currently a UI preview — full real-time audio/video requires a signaling server, which isn't wired up yet.</span></p>
+    </div>
+
+    <div class="section">
+      <h3>FAQ</h3>
+      <p style="margin-bottom:14px;"><b>How do I change my avatar?</b><br>
+      <span style="color:var(--text-mute);">Go to Profile and paste an image URL or a YouTube link.</span></p>
+      <p style="margin-bottom:14px;"><b>How do I block private messages?</b><br>
+      <span style="color:var(--text-mute);">Go to Settings → Privacy and choose "Block All PMs."</span></p>
+      <p style="margin-bottom:14px;"><b>How do I stop the chat from auto-scrolling?</b><br>
+      <span style="color:var(--text-mute);">Go to Settings → Chat Window and choose "Freeze scroll position."</span></p>
+      <p style="margin-bottom:14px;"><b>How do I like or dislike someone?</b><br>
+      <span style="color:var(--text-mute);">Open the Most Loved page and send a reaction to their username.</span></p>
+      <p><b>How do I hide the People list?</b><br>
+      <span style="color:var(--text-mute);">Click the ⏴ icon at the bottom of the sidebar in the chat room to collapse or expand it.</span></p>
+    </div>
+  </div>
+</div>
+
+<script src="emoji-picker.js"></script>
+<script>
+document.getElementById('emoji-code-preview').innerHTML = Object.keys(EMOJI_CODE_MAP)
+  .map(code => `<span title=":${code}">:${code} ${EMOJI_CODE_MAP[code]}</span>`)
+  .join('  ');
+</script>
+
+</body>
+</html>

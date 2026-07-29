@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Private Messages — BidBoard</title>
+<style>
+  :root{
+    --purple:#8b5cf6; --pink:#ec4899; --blue:#60a5fa;
+    --rail-bg:#1c1533; --panel-bg:#ffffff; --panel-border:#e7e3f3;
+    --text-dark:#232037; --text-mute:#8b869e; --input-bg:#f4f2fa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display:flex; height:100vh; overflow:hidden; background:#fff; color:var(--text-dark);}
+  a{color:inherit; text-decoration:none;}
+
+  .rail{width:56px; background:var(--rail-bg); display:flex; flex-direction:column; align-items:center; padding:18px 0; gap:6px; flex-shrink:0;}
+  .rail .brand{width:34px; height:34px; border-radius:10px; margin-bottom:14px; background:linear-gradient(135deg, var(--purple), var(--pink)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:15px;}
+  .rail .ic{width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#b9b2d1; cursor:pointer; text-decoration:none;}
+  .rail .ic.active{background:rgba(139,92,246,0.25); color:#fff;}
+  .rail .ic:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .rail .spacer{flex:1;}
+
+  .threads{width:270px; background:var(--panel-bg); border-right:1px solid var(--panel-border); display:flex; flex-direction:column; flex-shrink:0;}
+  .threads-head{padding:16px; font-size:11px; font-weight:800; letter-spacing:0.1em; color:var(--text-mute);}
+  .new-thread{padding:0 16px 12px;}
+  .new-thread input{width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--panel-border); background:#f7f6fb; font-size:13px;}
+  .thread-list{flex:1; overflow-y:auto;}
+  .thread-row{padding:11px 16px; display:flex; align-items:center; gap:10px; cursor:pointer;}
+  .thread-row:hover, .thread-row.active{background:#f7f6fb;}
+  .t-av{width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; flex-shrink:0;}
+  .t-info{flex:1; min-width:0;}
+  .t-name{font-size:13.5px; font-weight:700;}
+  .t-last{font-size:11.5px; color:var(--text-mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;}
+  .t-unread{background:#ec4899; color:#fff; font-size:10px; font-weight:800; border-radius:999px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 4px;}
+
+  .convo{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .convo-head{padding:16px 24px; border-bottom:1px solid var(--panel-border); display:flex; align-items:center; justify-content:space-between;}
+  .convo-title{font-weight:800; font-size:16px;}
+  .convo-actions{display:flex; gap:8px;}
+  .convo-actions .ic-btn{width:34px; height:34px; border-radius:9px; background:#f4f2fa; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px;}
+  .convo-log{flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:10px;}
+  .pm-bubble{max-width:60%;}
+  .pm-bubble .b{background:var(--input-bg); padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.5;}
+  .pm-bubble.me{align-self:flex-end;}
+  .pm-bubble.me .b{background:linear-gradient(90deg, var(--purple), #7c3aed); color:#fff;}
+  .pm-bubble img{max-width:220px; border-radius:12px; margin-top:6px; display:block;}
+  .pm-time{font-size:10.5px; color:#c3bfd1; margin-top:3px;}
+
+  .above-composer{position:relative;}
+  .emoji-toggle-row{display:flex; padding:6px 20px 0; gap:8px;}
+  .emoji-btn{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; background:#f4f2fa; border:1px solid var(--panel-border);}
+  .emoji-panel{position:absolute; bottom:100%; left:20px; margin-bottom:8px; width:280px; background:#fff; border:1px solid var(--panel-border); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.15); padding:12px; z-index:50; display:none;}
+  .emoji-panel.open{display:block;}
+  .emoji-tabs{display:flex; gap:8px; margin-bottom:10px;}
+  .emoji-tab{padding:5px 12px; border-radius:999px; font-size:11.5px; font-weight:700; color:var(--text-mute); background:#f4f2fa; cursor:pointer;}
+  .emoji-tab.active{background:var(--purple); color:#fff;}
+  .emoji-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:4px; max-height:160px; overflow-y:auto;}
+  .emoji-item{font-size:20px; cursor:pointer; text-align:center; padding:4px; border-radius:6px;}
+  .emoji-item:hover{background:#f4f2fa;}
+  @keyframes emoji-bounce{0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);}}
+  .emoji-anim{animation:emoji-bounce 0.9s ease-in-out infinite;}
+
+  .composer{display:flex; align-items:center; gap:10px; padding:14px 20px; border-top:1px solid var(--panel-border);}
+  .comp-ic{width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; flex-shrink:0; background:#f4f2fa;}
+  .composer input[type=text]{flex:1; padding:11px 16px; border-radius:10px; border:1px solid var(--panel-border); background:var(--input-bg); font-size:14.5px; font-family:inherit;}
+  .composer input[type=text]:focus{outline:none; border-color:var(--purple);}
+  .send-btn{width:38px; height:38px; border-radius:10px; border:none; cursor:pointer; flex-shrink:0; background:linear-gradient(135deg, var(--purple), var(--blue)); color:#fff; font-size:15px;}
+  .attach-preview{padding:0 20px; display:none; align-items:center; gap:10px;}
+  .attach-preview img{width:52px; height:52px; object-fit:cover; border-radius:8px;}
+  .attach-preview .remove{font-size:12px; color:#c0392b; cursor:pointer; font-weight:700;}
+  .empty-state{flex:1; display:flex; align-items:center; justify-content:center; color:var(--text-mute); font-size:14px;}
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <div class="ic active" title="Private Messages">✉️</div>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="threads">
+  <div class="threads-head">MESSAGES</div>
+  <div class="new-thread"><input type="text" id="new-thread-input" placeholder="Start a new PM (type a username)…"></div>
+  <div class="thread-list" id="thread-list"><div style="padding:16px; color:#8b869e; font-size:13px;">Loading…</div></div>
+</div>
+
+<div class="convo" id="convo">
+  <div class="empty-state" id="empty-state">Pick a conversation, or start a new one.</div>
+</div>
+
+<script src="api.js"></script>
+<script src="emoji-picker.js"></script>
+<script src="call-webrtc.js"></script>
+<script>
+Session.requireLogin();
+let me = null;
+let activePartner = null;
+let lastPmId = 0;
+let attachedImage = '';
+
+function urlParam(name){
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+async function loadThreads(){
+  const result = await api('/pms/threads');
+  const list = document.getElementById('thread-list');
+  if(result.error){ list.textContent = result.error; return; }
+  if(!result.threads.length){
+    list.innerHTML = '<div style="padding:16px; color:#c3bfd1; font-size:12.5px;">No conversations yet.</div>';
+  } else {
+    list.innerHTML = result.threads.map(t => `
+      <div class="thread-row ${t.partner === activePartner ? 'active':''}" onclick="openThread('${t.partner}')">
+        <div class="t-av" style="background:${colorFor(t.partner)}">${initials(t.partner)}</div>
+        <div class="t-info">
+          <div class="t-name">${t.partner}</div>
+          <div class="t-last">${t.lastText}</div>
+        </div>
+        ${t.unread > 0 ? `<span class="t-unread">${t.unread}</span>` : ''}
+      </div>
+    `).join('');
+  }
+}
+
+function renderConvoShell(partner){
+  document.getElementById('convo').innerHTML = `
+    <div class="convo-head">
+      <div class="convo-title">${partner}</div>
+      <div class="convo-actions">
+        <div class="ic-btn" title="Audio call" onclick="openCallModal('${partner}','audio')">📞</div>
+        <div class="ic-btn" title="Video call" onclick="openCallModal('${partner}','video')">🎥</div>
+      </div>
+    </div>
+    <div class="convo-log" id="convo-log"></div>
+    <div class="attach-preview" id="attach-preview">
+      <img id="attach-img" src="">
+      <span class="remove" id="attach-remove">Remove</span>
+    </div>
+    <div class="above-composer">
+      <div class="emoji-panel" id="emoji-panel"></div>
+      <div class="emoji-toggle-row">
+        <div class="emoji-btn" id="emoji-toggle" title="Emojis">😊</div>
+      </div>
+      <div class="composer">
+        <div class="comp-ic" id="attach-btn" title="Attach a photo">📎</div>
+        <input type="file" id="file-input" accept="image/*" style="display:none;">
+        <input type="text" id="pm-input" placeholder="Message ${partner}…">
+        <button class="send-btn" id="pm-send">➤</button>
+      </div>
+    </div>
+  `;
+
+  const emojiPanel = document.getElementById('emoji-panel');
+  buildEmojiPicker(emojiPanel, (emoji) => {
+    const input = document.getElementById('pm-input');
+    input.value += emoji;
+    input.focus();
+  });
+  document.getElementById('emoji-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    emojiPanel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if(!emojiPanel.contains(e.target) && e.target.id !== 'emoji-toggle') emojiPanel.classList.remove('open');
+  });
+
+  document.getElementById('attach-btn').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      attachedImage = reader.result; // data URL — fine for demo scale; swap for real upload storage at production scale
+      document.getElementById('attach-img').src = attachedImage;
+      document.getElementById('attach-preview').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('attach-remove').addEventListener('click', () => {
+    attachedImage = '';
+    document.getElementById('attach-preview').style.display = 'none';
+  });
+
+  document.getElementById('pm-send').addEventListener('click', sendPm);
+  document.getElementById('pm-input').addEventListener('keydown', e => { if(e.key === 'Enter') sendPm(); });
+}
+
+function addPmBubble(pm){
+  const log = document.getElementById('convo-log');
+  if(!log) return;
+  const mine = pm.from === me.username;
+  const time = new Date(pm.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'pm-bubble' + (mine ? ' me' : '');
+  div.innerHTML = `
+    <div class="b">
+      ${pm.text ? substituteEmojiCodes(pm.text.replace(/</g,'&lt;')) : ''}
+      ${pm.imageUrl ? `<img src="${pm.imageUrl}">` : ''}
+    </div>
+    <div class="pm-time">${time}</div>
+  `;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function openThread(partner){
+  activePartner = partner;
+  lastPmId = 0;
+  renderConvoShell(partner);
+  await api('/pms/read', { method:'POST', body:{ partner } });
+  const result = await api(`/pms?with=${encodeURIComponent(partner)}`);
+  if(result.messages){
+    result.messages.forEach(p => { addPmBubble(p); lastPmId = p.id; });
+  }
+  loadThreads();
+}
+window.openThread = openThread;
+
+async function pollActiveThread(){
+  if(!activePartner) return;
+  const result = await api(`/pms?with=${encodeURIComponent(activePartner)}&since=${lastPmId}`);
+  if(result.messages && result.messages.length){
+    result.messages.forEach(p => { addPmBubble(p); lastPmId = p.id; });
+    await api('/pms/read', { method:'POST', body:{ partner: activePartner } });
+    loadThreads();
+  }
+}
+
+async function sendPm(){
+  const input = document.getElementById('pm-input');
+  const text = input.value.trim();
+  if(!text && !attachedImage) return;
+  const body = { toUsername: activePartner, text, imageUrl: attachedImage };
+  input.value = '';
+  const imgToSend = attachedImage;
+  attachedImage = '';
+  document.getElementById('attach-preview').style.display = 'none';
+  const result = await api('/pms', { method:'POST', body });
+  if(result.error){ alert(result.error); return; }
+  addPmBubble(result.pm);
+  loadThreads();
+}
+window.sendPm = sendPm;
+
+document.getElementById('new-thread-input').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    const name = e.target.value.trim();
+    if(name) openThread(name);
+    e.target.value = '';
+  }
+});
+
+async function init(){
+  const profileResult = await api('/profile');
+  if(profileResult.error){ Session.clear(); window.location.href = 'index.html'; return; }
+  me = profileResult.user;
+  connectCallSignaling(Session.get().token);
+  await loadThreads();
+  const preset = urlParam('user');
+  if(preset) openThread(preset);
+  setInterval(loadThreads, 6000);
+  setInterval(pollActiveThread, 2500);
+}
+init();
+</script>
+
+</body>
+</html>

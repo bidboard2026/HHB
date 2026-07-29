@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <div class="ic active" title="Settings">⚙️</div>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>SETTINGS</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body">
+    <div id="notice"></div>
+
+    <div class="section">
+      <h3>NICKNAME</h3>
+      <div class="field">
+        <label>Change nickname</label>
+        <input type="text" id="nick-input">
+        <div class="hint">This is a shortcut to the same rename found on your Profile page — you'll need to log back in after changing it.</div>
+      </div>
+      <button class="btn secondary" id="save-nick">Save Nickname</button>
+    </div>
+
+    <div class="section">
+      <h3>CHAT FONT</h3>
+      <div class="row2">
+        <div class="field">
+          <label>Font family</label>
+          <select id="font-family">
+            <option>Inter</option>
+            <option>Georgia</option>
+            <option>Courier New</option>
+            <option>Comic Sans MS</option>
+            <option>Trebuchet MS</option>
+            <option>Poppins</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Font size</label>
+          <select id="font-size">
+            <option value="13">13px</option>
+            <option value="15">15px</option>
+            <option value="17">17px</option>
+            <option value="20">20px</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Font color</label>
+        <input type="color" id="font-color" style="width:70px; padding:3px; height:38px;">
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div id="font-preview" style="padding:12px 14px; background:#fff; border:1px solid var(--panel-border); border-radius:9px;">Your messages will look like this</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>PRIVACY</h3>
+      <div class="field">
+        <label>Block private messages</label>
+        <div class="toggle-group" id="pm-toggle">
+          <div class="toggle-opt" data-value="Everyone">Allow Everyone</div>
+          <div class="toggle-opt" data-value="Off">Block All PMs</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Who can whisper to you (/whisper in chat rooms)</label>
+        <div class="toggle-group" id="whisper-toggle">
+          <div class="toggle-opt" data-value="Everyone">Allow Everyone</div>
+          <div class="toggle-opt" data-value="Off">Block All Whispers</div>
+        </div>
+        <div class="hint">A "Friends only" option would need a friends-list feature we haven't built yet — for now it's Everyone or Off.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>CHAT WINDOW</h3>
+      <div class="field">
+        <label>Auto-scroll behavior</label>
+        <div class="toggle-group" id="scroll-toggle">
+          <div class="toggle-opt" data-value="auto">Auto-scroll to newest</div>
+          <div class="toggle-opt" data-value="freeze">Freeze scroll position</div>
+        </div>
+        <div class="hint">Freeze keeps your place in the log even when new messages come in — handy while reading back.</div>
+      </div>
+    </div>
+
+    <button class="btn wide" id="save-all">Save Settings</button>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+Session.requireLogin();
+let me = null;
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+function setToggleGroup(groupId, value){
+  document.querySelectorAll(`#${groupId} .toggle-opt`).forEach(el => {
+    el.classList.toggle('active', el.dataset.value === value);
+  });
+}
+function getToggleValue(groupId){
+  const active = document.querySelector(`#${groupId} .toggle-opt.active`);
+  return active ? active.dataset.value : null;
+}
+document.querySelectorAll('.toggle-group').forEach(group => {
+  group.addEventListener('click', e => {
+    const opt = e.target.closest('.toggle-opt');
+    if(!opt) return;
+    group.querySelectorAll('.toggle-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+  });
+});
+
+function updatePreview(){
+  const el = document.getElementById('font-preview');
+  el.style.fontFamily = document.getElementById('font-family').value;
+  el.style.fontSize = document.getElementById('font-size').value + 'px';
+  el.style.color = document.getElementById('font-color').value;
+}
+['font-family','font-size','font-color'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePreview);
+  document.getElementById(id).addEventListener('change', updatePreview);
+});
+
+async function load(){
+  const result = await api('/profile');
+  if(result.error){ Session.clear(); window.location.href='index.html'; return; }
+  me = result.user;
+  document.getElementById('nick-input').value = me.username;
+  document.getElementById('font-family').value = me.fontFamily || 'Inter';
+  document.getElementById('font-size').value = me.fontSize || 15;
+  document.getElementById('font-color').value = me.fontColor || '#232037';
+  setToggleGroup('pm-toggle', me.blockPm || 'Everyone');
+  setToggleGroup('whisper-toggle', me.whisperPolicy || 'Everyone');
+  setToggleGroup('scroll-toggle', me.scrollMode || 'auto');
+  updatePreview();
+}
+load();
+
+document.getElementById('save-nick').addEventListener('click', async () => {
+  const nick = document.getElementById('nick-input').value.trim();
+  if(!nick || nick === me.username) return;
+  const result = await api('/profile', { method:'POST', body:{ username: nick } });
+  if(result.error) return notice(result.error, false);
+  notice('Nickname changed. Please log in again.', true);
+  setTimeout(() => { Session.clear(); window.location.href = 'index.html'; }, 1500);
+});
+
+document.getElementById('save-all').addEventListener('click', async () => {
+  const patch = {
+    fontFamily: document.getElementById('font-family').value,
+    fontSize: Number(document.getElementById('font-size').value),
+    fontColor: document.getElementById('font-color').value,
+    blockPm: getToggleValue('pm-toggle'),
+    whisperPolicy: getToggleValue('whisper-toggle'),
+    scrollMode: getToggleValue('scroll-toggle')
+  };
+  const result = await api('/settings', { method:'POST', body: patch });
+  if(result.error) return notice(result.error, false);
+  notice('Settings saved.', true);
+});
+</script>
+
+</body>
+</html>

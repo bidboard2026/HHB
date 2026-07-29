@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join the Room — BidBoard</title>
+<style>
+  :root{
+    --purple:#8b5cf6; --pink:#ec4899; --blue:#60a5fa;
+    --panel:#1c1533; --panel-border:rgba(168,130,255,0.18);
+    --text-hi:#f3f0fb; --text-mid:#b9b2d1; --text-low:#7c7495;
+    --field-bg:#241a42; --field-border:#352a5c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--login-bg, linear-gradient(180deg,#16102b,#0e0a1a));
+    color:var(--text-hi); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card{
+    width:380px; background:linear-gradient(180deg, var(--panel), #150e28);
+    border:1px solid var(--panel-border); border-radius:20px; padding:32px 30px;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  .room-name{font-family:'Poppins',sans-serif; font-size:20px; font-weight:800; text-align:center; margin-bottom:4px;}
+  .room-topic{font-size:12.5px; color:var(--text-mid); text-align:center; margin-bottom:22px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-low); margin-bottom:7px;}
+  .field input{width:100%; padding:12px 14px; border-radius:10px; background:var(--field-bg); border:1px solid var(--field-border); color:var(--text-hi); font-size:14.5px; font-family:inherit;}
+  .field input:focus{outline:none; border-color:var(--purple);}
+  .cta{width:100%; padding:13px 0; border:none; border-radius:11px; cursor:pointer; font-size:15px; font-weight:800; color:#fff; margin-top:4px; background:linear-gradient(90deg, var(--purple), var(--blue));}
+  .notice{background:#3a1e2e; color:#ff9bb8; padding:9px 13px; border-radius:8px; font-size:12.5px; margin-bottom:14px;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="room-name" id="room-name">Loading…</div>
+  <div class="room-topic" id="room-topic"></div>
+  <div id="notice"></div>
+  <form id="join-form">
+    <div class="field"><label>Nickname</label><input type="text" id="nick" required></div>
+    <div class="field"><label>Password <span style="text-transform:none; opacity:0.7;">(optional — guests can skip)</span></label><input type="password" id="pass"></div>
+    <button class="cta" type="submit">Enter the Room</button>
+  </form>
+</div>
+
+<script src="api.js"></script>
+<script>
+const roomId = urlParam('room');
+if(!roomId){ document.getElementById('room-name').textContent = 'Missing room ID.'; }
+
+function notice(msg){
+  document.getElementById('notice').innerHTML = `<div class="notice">${msg}</div>`;
+}
+
+async function loadRoom(){
+  const res = await fetch(`${API_BASE}/rooms/${roomId}/public`);
+  const data = await res.json();
+  if(data.error){ document.getElementById('room-name').textContent = data.error; return; }
+  document.getElementById('room-name').textContent = data.room.name;
+  document.getElementById('room-topic').textContent = data.room.topic;
+  if(data.room.theme && data.room.theme.loginBackground){
+    document.body.style.setProperty('--login-bg', data.room.theme.loginBackground.startsWith('#')
+      ? data.room.theme.loginBackground
+      : `url(${data.room.theme.loginBackground}) center/cover`);
+  }
+}
+loadRoom();
+
+document.getElementById('join-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('nick').value.trim();
+  const password = document.getElementById('pass').value.trim();
+  if(!username) return;
+  const result = await api('/login', { method:'POST', body:{ username, password, roomId } });
+  if(result.error) return notice(result.error);
+  Session.set({ token: result.token, username: result.user.username });
+  window.location.href = `chat-room.html?room=${roomId}`;
+});
+</script>
+
+</body>
+</html>

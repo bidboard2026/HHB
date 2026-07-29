@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <div class="ic active" title="Profile">👤</div>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>PROFILE</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body">
+    <div id="notice"></div>
+
+    <div class="section">
+      <h3>PROFILE PICTURE</h3>
+      <div class="field">
+        <label>Image URL</label>
+        <input type="text" id="avatar-url" placeholder="https://example.com/your-photo.jpg">
+        <div class="hint">Paste a direct image link — jpg, png, gif, or bmp.</div>
+      </div>
+      <div class="field">
+        <label>YouTube URL (video thumbnail becomes your DP)</label>
+        <input type="text" id="youtube-url" placeholder="https://youtube.com/watch?v=...">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>PERSONAL INFO</h3>
+      <div class="field">
+        <label>Real Name</label>
+        <input type="text" id="real-name" placeholder="Optional">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Age</label>
+          <input type="number" id="age" placeholder="Optional">
+        </div>
+        <div class="field">
+          <label>Gender</label>
+          <select id="gender">
+            <option>Male</option>
+            <option>Female</option>
+            <option>Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Status (max 250 chars)</label>
+        <textarea id="status" maxlength="250" placeholder="What's on your mind?"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>CHANGE CREDENTIALS</h3>
+      <div class="field">
+        <label>New Username</label>
+        <input type="text" id="new-username">
+        <div class="hint">You'll need to log back in after changing your username.</div>
+      </div>
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="new-password" placeholder="Leave blank to keep current password">
+      </div>
+      <button class="btn wide" id="save-btn">Update Profile</button>
+    </div>
+
+    <div class="section">
+      <h3>STATS</h3>
+      <div class="row2">
+        <div>Level: <b id="stat-level"></b></div>
+        <div>Points: <b id="stat-points"></b></div>
+        <div>Likes: <b id="stat-likes"></b></div>
+        <div>Dislikes: <b id="stat-dislikes"></b></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>IGNORE LIST</h3>
+      <div class="field">
+        <label>You are ignoring</label>
+        <div id="ignoring-list" style="font-size:13px; color:var(--text-mute);">—</div>
+      </div>
+      <div class="field">
+        <label>Ignored by</label>
+        <div id="ignored-by-list" style="font-size:13px; color:var(--text-mute);">—</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>DISPLAYED BADGE</h3>
+      <div class="hint" style="margin-bottom:10px;">Pick which of your earned tags shows first next to your name.</div>
+      <div id="tag-chips"></div>
+    </div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+Session.requireLogin();
+let me = null;
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+async function load(){
+  const result = await api('/profile');
+  if(result.error){ Session.clear(); window.location.href='index.html'; return; }
+  me = result.user;
+  document.getElementById('avatar-url').value = me.avatarUrl || '';
+  document.getElementById('youtube-url').value = me.youtubeUrl || '';
+  document.getElementById('real-name').value = me.realName || '';
+  document.getElementById('age').value = me.age || '';
+  document.getElementById('gender').value = me.gender || 'Prefer not to say';
+  document.getElementById('status').value = me.statusMessage || '';
+  document.getElementById('new-username').value = me.username;
+  document.getElementById('stat-level').textContent = me.level;
+  document.getElementById('stat-points').textContent = me.points;
+  document.getElementById('stat-likes').textContent = me.likes;
+  document.getElementById('stat-dislikes').textContent = me.dislikes;
+
+  const ignoreInfo = await api('/ignore-info');
+  document.getElementById('ignoring-list').textContent = ignoreInfo.ignoring && ignoreInfo.ignoring.length ? ignoreInfo.ignoring.join(', ') : 'No one';
+  document.getElementById('ignored-by-list').textContent = ignoreInfo.ignoredBy && ignoreInfo.ignoredBy.length ? ignoreInfo.ignoredBy.join(', ') : 'No one';
+
+  renderTagChips(me.tags || [], me.selectedTag || '');
+}
+load();
+
+function renderTagChips(tags, selected){
+  const el = document.getElementById('tag-chips');
+  if(!tags.length){ el.innerHTML = '<div style="color:var(--text-mute); font-size:13px;">You have no special tags yet.</div>'; return; }
+
+  const categoryLabels = { staff: 'STAFF ROLES', status: 'STATUS BADGES' };
+  const grouped = {};
+  tags.forEach(t => {
+    const badge = TAG_BADGES[t];
+    const cat = badge ? badge.category : 'other';
+    (grouped[cat] = grouped[cat] || []).push(t);
+  });
+
+  el.innerHTML = Object.keys(grouped).map(cat => `
+    <div style="margin-bottom:10px;">
+      <div style="font-size:10.5px; font-weight:800; letter-spacing:0.08em; color:var(--text-mute); margin-bottom:6px;">${categoryLabels[cat] || cat.toUpperCase()}</div>
+      ${grouped[cat].map(t => {
+        const badge = TAG_BADGES[t];
+        const label = badge ? badge.label : t;
+        return `<span class="tag-chip ${t===selected?'active':''}" onclick="selectTag('${t}')">${label}</span>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+async function selectTag(tag){
+  const current = me.selectedTag === tag ? '' : tag; // click again to deselect
+  const result = await api('/select-tag', { method:'POST', body:{ tag: current } });
+  if(result.error) return notice(result.error, false);
+  me.selectedTag = current;
+  renderTagChips(me.tags || [], current);
+  notice('Displayed badge updated.', true);
+}
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const patch = {
+    avatarUrl: document.getElementById('avatar-url').value.trim(),
+    youtubeUrl: document.getElementById('youtube-url').value.trim(),
+    realName: document.getElementById('real-name').value.trim(),
+    age: document.getElementById('age').value.trim(),
+    gender: document.getElementById('gender').value,
+    statusMessage: document.getElementById('status').value.trim(),
+    username: document.getElementById('new-username').value.trim()
+  };
+  const newPass = document.getElementById('new-password').value.trim();
+  if(newPass) patch.password = newPass;
+
+  const result = await api('/profile', { method:'POST', body: patch });
+  if(result.error) return notice(result.error, false);
+
+  if(patch.username !== me.username){
+    notice('Profile updated. Your username changed — please log in again.', true);
+    setTimeout(() => { Session.clear(); window.location.href = 'index.html'; }, 1800);
+  } else {
+    notice('Profile updated.', true);
+  }
+});
+</script>
+
+</body>
+</html>

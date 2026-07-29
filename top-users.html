@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top Users — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <div class="ic active" title="Top Users">📊</div>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>TOP USERS</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body">
+    <div class="section">
+      <h3>RANKED BY POINTS</h3>
+      <p style="color:var(--text-mute); font-size:13px; margin-bottom:16px;">
+        Points build up from chatting (+5 per real message) and simply staying in a room (+1 per minute online).
+      </p>
+      <div id="lb-list">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+Session.requireLogin();
+async function load(){
+  const result = await api('/leaderboard/points');
+  const list = document.getElementById('lb-list');
+  if(result.error){ list.textContent = result.error; return; }
+  list.innerHTML = result.leaderboard.map((u, i) => {
+    const rankClass = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    return `<div class="lb-row">
+      <div class="lb-rank ${rankClass}">${medal}</div>
+      <div class="lb-name">${u.username} <span style="font-weight:400; color:var(--text-mute); font-size:12px;">LV.${u.level}</span></div>
+      <div class="lb-value">${u.points.toLocaleString()} pts</div>
+    </div>`;
+  }).join('') || '<p style="color:var(--text-mute);">No users yet.</p>';
+}
+load();
+</script>
+
+</body>
+</html>

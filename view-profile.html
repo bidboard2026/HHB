@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .vp-head{display:flex; align-items:center; gap:16px; margin-bottom:20px;}
+  .vp-avatar{width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:26px;}
+  .vp-name{font-size:20px; font-weight:800;}
+  .vp-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;}
+  .vp-stat{background:#fff; border:1px solid var(--panel-border); border-radius:12px; padding:14px; text-align:center;}
+  .vp-stat .num{font-size:22px; font-weight:800;}
+  .vp-stat .lbl{font-size:11px; color:var(--text-mute); margin-top:2px;}
+  .vp-list{font-size:13px; color:var(--text-dark); line-height:1.8;}
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <a class="ic" title="Most Loved" href="most-loved.html">🏆</a>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>PROFILE</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body" id="page-body">
+    <div style="color:var(--text-mute);">Loading…</div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script src="emoji-picker.js"></script>
+<script>
+Session.requireLogin();
+const username = urlParam('user');
+
+async function load(){
+  if(!username){ document.getElementById('page-body').textContent = 'No user specified.'; return; }
+  const result = await api(`/users/${encodeURIComponent(username)}/public`);
+  if(result.error){ document.getElementById('page-body').textContent = result.error; return; }
+  const p = result.profile;
+  const emoji = resolveAvatarEmoji(p.avatarEmoji);
+
+  document.getElementById('page-body').innerHTML = `
+    <div class="vp-head">
+      <div class="vp-avatar" style="background:${emoji?'transparent':colorFor(p.username)}">${emoji || initials(p.username)}</div>
+      <div>
+        <div class="vp-name">${p.username}</div>
+        <div>${renderBadges(p.tags)}</div>
+      </div>
+    </div>
+
+    ${p.statusMessage ? `<div class="section" style="font-style:italic; color:var(--text-mute);">"${p.statusMessage}"</div>` : ''}
+
+    <div class="vp-stats">
+      <div class="vp-stat"><div class="num">${p.points}</div><div class="lbl">POINTS</div></div>
+      <div class="vp-stat"><div class="num">👍 ${p.likes}</div><div class="lbl">LIKED BY</div></div>
+      <div class="vp-stat"><div class="num">👎 ${p.dislikes}</div><div class="lbl">DISLIKED BY</div></div>
+    </div>
+
+    <div class="section">
+      <h3>MEMBER SINCE</h3>
+      <div class="vp-list">${new Date(p.createdAt).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' })}</div>
+    </div>
+
+    <div class="section">
+      <h3>IGNORE RELATIONSHIPS</h3>
+      <div class="vp-list">
+        <b>${p.username} is ignoring (${p.ignoring.length}):</b> ${p.ignoring.length ? p.ignoring.join(', ') : '—'}<br>
+        <b>Ignored by (${p.ignoredBy.length}):</b> ${p.ignoredBy.length ? p.ignoredBy.join(', ') : '—'}
+      </div>
+    </div>
+  `;
+}
+load();
+</script>
+
+</body>
+</html>

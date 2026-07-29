@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Most Loved — BidBoard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">B</div>
+  <a class="ic" title="Home (Main Chat)" href="chat-room.html">🏠</a>
+  <a class="ic" title="Rooms" href="chat-room.html">👥</a>
+  <a class="ic" title="Profile" href="profile.html">👤</a>
+  <a class="ic" title="Private Messages" href="pm.html">✉️</a>
+  <a class="ic" title="Settings" href="settings.html">⚙️</a>
+  <a class="ic" title="Top Users" href="top-users.html">📊</a>
+  <div class="ic active" title="Most Loved">🏆</div>
+  <div class="spacer"></div>
+  <a class="ic" title="Help" href="help.html">❓</a>
+</div>
+
+<div class="page">
+  <div class="page-head"><span>MOST LOVED</span> <a href="chat-room.html" style="color:var(--purple); font-weight:700;">← Back to room</a></div>
+  <div class="page-body">
+    <div id="notice"></div>
+    <div class="section">
+      <h3>RANKED BY LIKES RECEIVED</h3>
+      <p style="color:var(--text-mute); font-size:13px; margin-bottom:16px;">
+        Other users can like or dislike anyone in the People list from the chat room. Here's who the community loves most.
+      </p>
+      <div id="lb-list">Loading…</div>
+    </div>
+
+    <div class="section">
+      <h3>REACT TO SOMEONE</h3>
+      <div class="row2">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="target-user" placeholder="e.g. tester1">
+        </div>
+        <div class="field">
+          <label>Reaction</label>
+          <div class="toggle-group">
+            <div class="toggle-opt active" id="react-like" data-value="like">👍 Like</div>
+            <div class="toggle-opt" id="react-dislike" data-value="dislike">👎 Dislike</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn secondary" id="send-react">Send Reaction</button>
+    </div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+Session.requireLogin();
+
+function notice(msg, ok){
+  document.getElementById('notice').innerHTML = `<div class="notice ${ok?'ok':'err'}">${msg}</div>`;
+}
+
+async function loadLeaderboard(){
+  const result = await api('/leaderboard/likes');
+  const list = document.getElementById('lb-list');
+  if(result.error){ list.textContent = result.error; return; }
+  list.innerHTML = result.leaderboard.map((u, i) => {
+    const rankClass = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    return `<div class="lb-row">
+      <div class="lb-rank ${rankClass}">${medal}</div>
+      <div class="lb-name">${u.username}</div>
+      <div class="lb-value">🎁 ${u.likes}</div>
+    </div>`;
+  }).join('') || '<p style="color:var(--text-mute);">No users yet.</p>';
+}
+loadLeaderboard();
+
+let reactionType = 'like';
+document.querySelectorAll('.toggle-group .toggle-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.toggle-group .toggle-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    reactionType = opt.dataset.value;
+  });
+});
+
+document.getElementById('send-react').addEventListener('click', async () => {
+  const target = document.getElementById('target-user').value.trim();
+  if(!target) return notice('Enter a username first.', false);
+  const result = await api('/react', { method:'POST', body:{ targetUsername: target, type: reactionType } });
+  if(result.error) return notice(result.error, false);
+  notice(`Reaction sent to ${target}.`, true);
+  loadLeaderboard();
+});
+</script>
+
+</body>
+</html>
